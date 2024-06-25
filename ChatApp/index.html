@@ -25,6 +25,7 @@
                 <div id="group-members">
                     <h4>Members</h4>
                     <ul id="members"></ul>
+                    <button id="promote-member-btn" style="display: none;">Promote to Admin</button>
                 </div><br><br>
                 <div id="chat-box">
                     <h4>Group Chat</h4>
@@ -47,6 +48,7 @@
             const inviteMemberBtn = document.getElementById('invite-member-btn');
             const groupDetails = document.getElementById('group-details');
             const groupListSection = document.getElementById('group-list');
+            const promoteMemberBtn = document.getElementById('promote-member-btn');
 
             const token = localStorage.getItem('token');
             let selectedGroup = null;
@@ -172,36 +174,68 @@
                     groupListSection.style.display = 'none';
                     membersList.innerHTML = '';
                     messagesList.innerHTML = '';
-        
+
                     // Add group members to the list
                     group.members.forEach(member => {
                         addMemberToList(member.user, member.isAdmin);
                     });
 
                     group.messages.forEach(addMessageToList);
+
+                    // Show or hide promoteMemberBtn based on admin status of current user
+                    if (group.isAdmin) {
+                        promoteMemberBtn.style.display = 'block';
+                    } else {
+                        promoteMemberBtn.style.display = 'none';
+                    }
                 } catch (error) {
                     console.error('Error fetching group details:', error);
                 }
             }
 
+            function addMemberToList(member, isAdmin) {
+                const li = document.createElement('li');
+                li.textContent = `${member.name} (${member.email})`;
+
+                if (isAdmin) {
+                    li.innerHTML += ' - Admin';
+                    li.setAttribute('data-admin', 'true'); // Mark this li as admin
+                } else {
+                    // Show the promote button for non-admin members
+                    promoteMemberBtn.style.display = 'block';
+                    promoteMemberBtn.onclick = async () => {
+                        try {
+                            const res = await axios.post('http://localhost:7000/groupMembers/promote', {
+                                groupId: selectedGroup,
+                                memberId: member.id
+                            }, {
+                                headers: {
+                                    Authorization: token
+                                }
+                            });
+
+                            if (res.status === 200) {
+                                alert('Member promoted to admin successfully');
+                                promoteMemberBtn.style.display = 'none'; // Hide the button after promoting
+                                li.innerHTML = `${member.name} (${member.email}) - Admin`; // Update innerHTML
+                                li.setAttribute('data-admin', 'true'); // Update the li to mark as admin
+                            } else {
+                                throw new Error('Failed to promote member');
+                            }
+                        } catch (error) {
+                            console.error('Error promoting member:', error);
+                        }
+                    };
+                }
+
+                li.innerHTML += ` <button class="remove-member-btn" data-user-id="${member.id}">Remove Member</button>`;
+                membersList.appendChild(li);
+            }
 
             function addMessageToList(message) {
                 const li = document.createElement('li');
                 li.textContent = message.content;
                 messagesList.appendChild(li);
-            }
-
-            function addMemberToList(member, isAdmin) {
-                const li = document.createElement('li');
-                li.innerHTML = `${member.name} (${member.email})`;
-    
-                // Check if the member is an admin
-                if (isAdmin) {
-                    li.innerHTML += ' - Admin'; // Display 'Admin' next to the user who created the group
-                }
-    
-                li.innerHTML += ` <button class="remove-member-btn" data-user-id="${member.id}">Remove Member</button>`;
-                membersList.appendChild(li);
             }
 
             function parseJwt(token) {
