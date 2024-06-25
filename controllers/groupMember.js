@@ -52,3 +52,29 @@ exports.removeMember = async (req, res) => {
       res.status(400).json({ error: error.message });
     }
 };
+
+exports.promoteMember = async (req, res) => {
+    try {
+        const { groupId, memberId } = req.body;
+
+        // Check if the requester is an admin of the group
+        const isRequesterAdmin = await GroupMember.findOne({
+            where: { groupId: groupId, userId: req.user.userid, isAdmin: true }
+        });
+
+        if (!isRequesterAdmin) {
+            return res.status(403).json({ error: 'Only group admins can promote members' });
+        }
+
+        // Update the member to set isAdmin to true
+        const updatedMember = await GroupMember.update(
+            { isAdmin: true },
+            { where: { groupId: groupId, userId: memberId } }
+        );
+
+        res.status(200).json({ message: 'Member promoted to admin successfully' });
+    } catch (error) {
+        console.error('Error promoting member:', error);
+        res.status(400).json({ error: error.message });
+    }
+};
